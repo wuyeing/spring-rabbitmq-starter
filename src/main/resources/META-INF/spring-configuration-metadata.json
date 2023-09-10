@@ -1,0 +1,37 @@
+{
+  "groups": [
+    {
+      "name": "rabbitmq",
+      "type": "yh.rabbit.public_rabbitmq_starter.properties.RabbitMqProperties",
+      "sourceType": "yh.rabbit.public_rabbitmq_starter.properties.RabbitMqProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "rabbitmq.exchanges",
+      "type": "java.util.List<yh.rabbit.public_rabbitmq_starter.properties.RabbitMqProperties$ExchangeConfig>",
+      "description": "装载自定义配置交换机",
+      "sourceType": "yh.rabbit.public_rabbitmq_starter.properties.RabbitMqProperties"
+    },
+    {
+      "name": "rabbitmq.is-listener",
+      "type": "java.lang.Boolean",
+      "description": "是否是监听器，如果开启则会消费被监听的队列，注意ACK抢占",
+      "sourceType": "yh.rabbit.public_rabbitmq_starter.properties.RabbitMqProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "rabbitmq.listeners",
+      "type": "java.util.List<yh.rabbit.public_rabbitmq_starter.properties.RabbitMqProperties$ListenerConfig>",
+      "description": "装载自定义配置监听器",
+      "sourceType": "yh.rabbit.public_rabbitmq_starter.properties.RabbitMqProperties"
+    },
+    {
+      "name": "rabbitmq.queues",
+      "type": "java.util.List<yh.rabbit.public_rabbitmq_starter.properties.RabbitMqProperties$QueueConfig>",
+      "description": "装载自定义配置队列",
+      "sourceType": "yh.rabbit.public_rabbitmq_starter.properties.RabbitMqProperties"
+    }
+  ],
+  "hints": []
+}
