@@ -13,7 +13,6 @@ import yh.rabbit.public_rabbitmq_starter.comsumer.RabbitConsumer;
 import yh.rabbit.public_rabbitmq_starter.listener.RabbitMessageListener;
 import yh.rabbit.public_rabbitmq_starter.util.SpringBeanUtils;
 
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -121,6 +120,16 @@ public class RabbitMqProperties {
         private String customType;
 
         /**
+         * 是否为持久交换机（将在服务器重启后保留下来）
+         */
+        private Boolean durable = Boolean.TRUE;
+
+        /**
+         * 如果它不再被使用则删除
+         */
+        private Boolean autoDelete = Boolean.FALSE;
+
+        /**
          * 交换机参数（自定义交换机）
          */
         private Map<String, Object> arguments;
@@ -188,10 +197,26 @@ public class RabbitMqProperties {
      */
     @PostConstruct
     public void init(){
+        // rabbitmq上移除符合条件的交换机，清理掉之前注册过的交换机
+        RabbitMQSingletonManager.deleteAllExchangesNotDurable();
+        RabbitMQSingletonManager.clearRabbitSingletonExchanges();
         createExchange();
+
+        // rabbitmq上移除符合条件的队列和全部绑定关系，清理掉之前注册过的队列和绑定对象
+        RabbitMQSingletonManager.deleteAllQueuesNotDurable();
+        RabbitMQSingletonManager.removeAllBindings();
+        RabbitMQSingletonManager.clearRabbitSingletonQueues();
+        RabbitMQSingletonManager.clearRabbitSingletonBindings();
         bindingQueueToExchange();
+
+        // 清理全部的监听器及其容器
+        RabbitMQSingletonManager.clearRabbitSingletonListeners();
+        RabbitMQSingletonManager.clearRabbitSingletonListenerContainers();
         if (getIsListener())
             createListeners();
+
+        // 向rabbitmq中间件声明新生成的队列、交换机、绑定关系
+        RabbitMQSingletonManager.rabbitAdminInitialize();
     }
 
     /**
@@ -200,18 +225,16 @@ public class RabbitMqProperties {
     public void createExchange() {
         List<ExchangeConfig> exchanges = getExchanges();
         if (!CollectionUtils.isEmpty(exchanges)) {
-            //先清理掉之前注册过的交换机
-            RabbitMQSingletonManager.clearRabbitSingletonExchanges();
             // 遍历配置中的每个交换机
             exchanges.forEach(e -> {
                 // 声明交换机，查看获取到的交换机类型，如果是指定的几种类型则构造对应实例
                 Exchange exchange = null;
                 switch (e.getType()) {
-                    case DIRECT -> exchange = new DirectExchange(e.getName());
-                    case TOPIC -> exchange = new TopicExchange(e.getName());
-                    case HEADERS -> exchange = new HeadersExchange(e.getName());
-                    case FANOUT -> exchange = new FanoutExchange(e.getName());
-                    case CUSTOM -> exchange = new CustomExchange(e.getName(), e.getCustomType(), true, false, e.getArguments());
+                    case DIRECT -> exchange = new DirectExchange(e.getName(), e.getDurable(), e.getAutoDelete(), e.getArguments());
+                    case TOPIC -> exchange = new TopicExchange(e.getName(), e.getDurable(), e.getAutoDelete(), e.getArguments());
+                    case HEADERS -> exchange = new HeadersExchange(e.getName(), e.getDurable(), e.getAutoDelete(), e.getArguments());
+                    case FANOUT -> exchange = new FanoutExchange(e.getName(), e.getDurable(), e.getAutoDelete(), e.getArguments());
+                    case CUSTOM -> exchange = new CustomExchange(e.getName(), e.getCustomType(), e.getDurable(), e.getAutoDelete(), e.getArguments());
                     default -> {
                     }
                 }
@@ -233,9 +256,6 @@ public class RabbitMqProperties {
         // 前面与创建交换机类似，都是针对逐个队列配置注册bean
         List<QueueConfig> queues = getQueues();
         if (!CollectionUtils.isEmpty(queues)) {
-            //先清理掉之前注册过的队列和绑定对象
-            RabbitMQSingletonManager.clearRabbitSingletonQueues();
-            RabbitMQSingletonManager.clearRabbitSingletonBindings();
             queues.forEach(q -> {
                 // 创建队列
                 Queue queue = new Queue(q.getName(), q.getDurable(),
@@ -263,7 +283,6 @@ public class RabbitMqProperties {
                         RabbitMQSingletonManager.registerRabbitSingletonBindings(q.getName() + "-" + name, binding);
                     }
                 });
-
             });
         }
     }
@@ -324,9 +343,6 @@ public class RabbitMqProperties {
     public void createListeners() {
         CachingConnectionFactory connectionFactory = SpringBeanUtils.getBean(CachingConnectionFactory.class);
         List<RabbitConsumer> rabbitConsumers = SpringBeanUtils.getBeansOfType(RabbitConsumer.class).values().stream().toList();
-        // 清理全部的监听器及其容器
-        RabbitMQSingletonManager.clearRabbitSingletonListeners();
-        RabbitMQSingletonManager.clearRabbitSingletonListenerContainers();
 
         List<ListenerConfig> listeners = getListeners();
         // 若没有配置监听器参数，按照下述配置，监听全部队列

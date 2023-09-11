@@ -3,8 +3,10 @@ package yh.rabbit.public_rabbitmq_starter.properties;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.Exchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import yh.rabbit.public_rabbitmq_starter.listener.RabbitMessageListener;
+import yh.rabbit.public_rabbitmq_starter.template.CustomRabbitTemplate;
 import yh.rabbit.public_rabbitmq_starter.util.SpringBeanUtils;
 
 import java.util.Map;
@@ -73,5 +75,51 @@ public final class RabbitMQSingletonManager {
     }
     public static void registerRabbitSingletonListenerContainers(String name, SimpleMessageListenerContainer listenerContainer) {
         registerRabbitSingleton(name, listenerContainer, listenerContainers);
+    }
+
+
+    // 注意要通过获取CustomRabbitTemplate来得到RabbitAdmin
+    private static final RabbitAdmin rabbitAdmin = new RabbitAdmin(SpringBeanUtils.getBean(CustomRabbitTemplate.class));
+
+    /**
+     * 将新生成的交换机、队列、绑定关系在rabbitmq中间件中进行声明
+     */
+    public static void rabbitAdminInitialize() {
+        for (Exchange exchange : exchanges.values()) {
+            rabbitAdmin.declareExchange(exchange);
+        }
+        for (Queue queue : queues.values()) {
+            rabbitAdmin.declareQueue(queue);
+        }
+        for (Binding binding : bindings.values()) {
+            rabbitAdmin.declareBinding(binding);
+        }
+    }
+
+    /**
+     * 在rabbitmq中间件中移除定义为非持久的交换机，交换机名单来自本地本地记录
+     */
+    public static void deleteAllExchangesNotDurable() {
+        exchanges.values().stream()
+                .filter(exchange -> !exchange.isDurable())
+                .forEach(exchange -> rabbitAdmin.deleteExchange(exchange.getName()));
+    }
+
+    /**
+     * 在rabbitmq中间件中移除定义为非持久的队列，队列名单来自本地本地记录
+     */
+    public static void deleteAllQueuesNotDurable() {
+        queues.values().stream()
+                .filter(queue -> !queue.isDurable())
+                .forEach(queue -> rabbitAdmin.deleteQueue(queue.getName()));
+    }
+
+    /**
+     * 在rabbitmq中间件中移除所有的绑定关系，名单来自本地本地记录
+     */
+    public static void removeAllBindings() {
+        for (Binding binding : bindings.values()) {
+            rabbitAdmin.removeBinding(binding);
+        }
     }
 }
