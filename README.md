@@ -9,6 +9,7 @@
     * properties下新增了RabbitMQSingletonManager类，用来管理和注册基于RabbitMqProperties参数的单例
     * 修改了RabbitMqProperties，实现了基于yml注册监听器的功能（[spring-rabbitmq-starter](https://gitee.com/dengshidang/spring-rabbitmq-starter)中是一个监听器监听所有的队列，基于不同的消费者来辨别，这里尽量实现官方指定队列监听的功能）
     * 基于第1条对RabbitMqProperties修改，使得在热更新yml时，清理掉之前注册过的队列、交换机、绑定关系、监听器实例并基于新参数重新注册
+    * 同步更新RabbitMQ中间件上的队列、交换机、绑定信息
 
 
 #### 安装教程
@@ -42,6 +43,7 @@ rabbitmq:
        # 话题
         -   name: topicExchange
             type: TOPIC
+            durable: false
      # 队列
     queues:
         -   name: insertUpdateQueue
@@ -49,6 +51,7 @@ rabbitmq:
             routing-key: insertUpdate.id
             # 指定交换机名称
             exchange-name: topicExchange
+            durable: false
         -   name: deleteQueue
             routing-key: delete.id
             exchange-name: topicExchange
